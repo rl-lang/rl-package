@@ -38,26 +38,36 @@ runs:
       working-directory: _rl_lang
       run: cargo build --release
 
+    - name: Create output dir (Linux)
+      shell: bash
+      if: runner.os == 'Linux'
+      run: mkdir -p bin
+
     - name: Package (Linux)
       shell: bash
       if: runner.os == 'Linux'
-      run: _rl_lang/target/release/rl package ${{ inputs.file }} -o ${{ inputs.output }}
+      run: _rl_lang/target/release/rl package ${{ inputs.file }} -o bin/${{ inputs.output }}
+
+    - name: Create output dir (Windows)
+      shell: pwsh
+      if: runner.os == 'Windows'
+      run: New-Item -ItemType Directory -Force -Path bin
 
     - name: Package (Windows)
       shell: pwsh
       if: runner.os == 'Windows'
-      run: _rl_lang\target\release\rl.exe package ${{ inputs.file }} -o ${{ inputs.output }}.exe
+      run: _rl_lang\target\release\rl.exe package ${{ inputs.file }} -o bin\${{ inputs.output }}.exe
 
     - name: Upload Linux artifact
       if: runner.os == 'Linux'
       uses: actions/upload-artifact@v4
       with:
         name: ${{ inputs.output }}-linux
-        path: ${{ inputs.output }}
+        path: bin/${{ inputs.output }}
 
     - name: Upload Windows artifact
       if: runner.os == 'Windows'
       uses: actions/upload-artifact@v4
       with:
         name: ${{ inputs.output }}-windows
-        path: ${{ inputs.output }}.exe
+        path: bin/${{ inputs.output }}.exe
