@@ -1,0 +1,63 @@
+name: rl-package
+description: Package a .rl file into self-contained binaries for Linux and Windows
+
+inputs:
+  file:
+    description: Path to the .rl source file (relative to calling repo root)
+    required: true
+  output:
+    description: Output binary name (without extension)
+    required: false
+    default: program
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout calling repo
+      uses: actions/checkout@v4
+
+    - name: Checkout rl-lang (dev)
+      uses: actions/checkout@v4
+      with:
+        repository: rl-lang/rl-lang
+        ref: dev
+        path: _rl_lang
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Build for Linux
+      shell: bash
+      if: runner.os == 'Linux'
+      working-directory: _rl_lang
+      run: cargo build --release
+
+    - name: Build for Windows
+      shell: pwsh
+      if: runner.os == 'Windows'
+      working-directory: _rl_lang
+      run: cargo build --release
+
+    - name: Package (Linux)
+      shell: bash
+      if: runner.os == 'Linux'
+      run: _rl_lang/target/release/rl package ${{ inputs.file }} -o ${{ inputs.output }}
+
+    - name: Package (Windows)
+      shell: pwsh
+      if: runner.os == 'Windows'
+      run: _rl_lang\target\release\rl.exe package ${{ inputs.file }} -o ${{ inputs.output }}.exe
+
+    - name: Upload Linux artifact
+      if: runner.os == 'Linux'
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.output }}-linux
+        path: ${{ inputs.output }}
+
+    - name: Upload Windows artifact
+      if: runner.os == 'Windows'
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.output }}-windows
+        path: ${{ inputs.output }}.exe
