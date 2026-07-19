@@ -1,5 +1,5 @@
 name: rl-package
-description: Package a .rl file into self-contained binaries for Linux and Windows
+description: Package a .rl file into self-contained binaries for Linux, macOS, and Windows
 
 inputs:
   file:
@@ -9,6 +9,10 @@ inputs:
     description: Output binary name (without extension)
     required: false
     default: program
+  version:
+    description: rl-cli version to install from crates.io (e.g. 0.1.4). Defaults to the latest published version.
+    required: false
+    default: ''
 
 runs:
   using: composite
@@ -16,53 +20,45 @@ runs:
     - name: Checkout calling repo
       uses: actions/checkout@v4
 
-    - name: Checkout rl-lang (dev)
-      uses: actions/checkout@v4
-      with:
-        repository: rl-lang/rl-lang
-        ref: dev
-        path: _rl_lang
-
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
 
-    - name: Build for Linux
-      shell: bash
-      if: runner.os == 'Linux'
-      working-directory: _rl_lang
-      run: cargo build --release
+    - name: Cache rl-cli install
+      uses: actions/cache@v4
+      with:
+        path: ~/.cargo/bin
+        key: rl-cli-${{ runner.os }}-${{ inputs.version || 'latest' }}
 
-    - name: Build for Windows
-      shell: pwsh
-      if: runner.os == 'Windows'
-      working-directory: _rl_lang
-      run: cargo build --release
-
-    - name: Create output dir (Linux)
+    - name: Install rl-cli
       shell: bash
-      if: runner.os == 'Linux'
+      run: |
+        if command -v rl >/dev/null 2>&1; then
+          echo "Using cached rl-cli: $(rl --version)"
+        elif [ -n "${{ inputs.version }}" ]; then
+          cargo install rl-cli --version "${{ inputs.version }}" --locked
+        else
+          cargo install rl-cli --locked
+        fi
+
+    - name: Create output dir
+      shell: bash
       run: mkdir -p bin
 
-    - name: Package (Linux)
+    - name: Package (Linux/macOS)
       shell: bash
-      if: runner.os == 'Linux'
-      run: _rl_lang/target/release/rl package ${{ inputs.file }} -o bin/${{ inputs.output }}
-
-    - name: Create output dir (Windows)
-      shell: pwsh
-      if: runner.os == 'Windows'
-      run: New-Item -ItemType Directory -Force -Path bin
+      if: runner.os != 'Windows'
+      run: rl package "${{ inputs.file }}" -o "bin/${{ inputs.output }}"
 
     - name: Package (Windows)
       shell: pwsh
       if: runner.os == 'Windows'
-      run: _rl_lang\target\release\rl.exe package ${{ inputs.file }} -o bin\${{ inputs.output }}.exe
+      run: rl package "${{ inputs.file }}" -o "bin\${{ inputs.output }}.exe"
 
-    - name: Upload Linux artifact
-      if: runner.os == 'Linux'
+    - name: Upload Linux/macOS artifact
+      if: runner.os != 'Windows'
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ inputs.output }}-linux
+        name: ${{ inputs.output }}-${{ runner.os }}
         path: bin/${{ inputs.output }}
 
     - name: Upload Windows artifact
@@ -70,4 +66,4 @@ runs:
       uses: actions/upload-artifact@v4
       with:
         name: ${{ inputs.output }}-windows
-        path: bin/${{ inputs.output }}.exe
+        path: bin\${{ inputs.output }}.exe
