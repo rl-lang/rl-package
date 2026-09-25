@@ -1,6 +1,10 @@
 name: rl-package
 description: Package a .rl file into self-contained binaries for Linux, macOS, and Windows
 
+branding:
+  icon: 'box'
+  color: 'blue'
+
 inputs:
   file:
     description: Path to the .rl source file (relative to calling repo root)
