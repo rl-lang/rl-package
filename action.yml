@@ -10,35 +10,21 @@ inputs:
     required: false
     default: program
   version:
-    description: rl-cli version to install from crates.io (e.g. 0.1.4). Defaults to the latest published version.
+    description: 'RL version: latest, nightly, or vX.Y.Z (e.g. v2.2.0). Defaults to the latest stable release.'
     required: false
-    default: ''
+    default: 'latest'
+  vm:
+    description: 'Compile to .rlc bytecode first and embed that instead of raw source text'
+    required: false
+    default: 'false'
 
 runs:
   using: composite
   steps:
-    - name: Checkout calling repo
-      uses: actions/checkout@v4
-
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-
-    - name: Cache rl-cli install
-      uses: actions/cache@v4
+    - uses: rl-lang/rl-setup@main
       with:
-        path: ~/.cargo/bin
-        key: rl-cli-${{ runner.os }}-${{ inputs.version || 'latest' }}
-
-    - name: Install rl-cli
-      shell: bash
-      run: |
-        if command -v rl >/dev/null 2>&1; then
-          echo "Using cached rl-cli: $(rl --version)"
-        elif [ -n "${{ inputs.version }}" ]; then
-          cargo install rl-cli --version "${{ inputs.version }}" --locked
-        else
-          cargo install rl-cli --locked
-        fi
+        version: ${{ inputs.version }}
+        binaries: rl
 
     - name: Create output dir
       shell: bash
@@ -47,12 +33,18 @@ runs:
     - name: Package (Linux/macOS)
       shell: bash
       if: runner.os != 'Windows'
-      run: rl package "${{ inputs.file }}" -o "bin/${{ inputs.output }}"
+      run: |
+        ARGS=()
+        [ "${{ inputs.vm }}" = "true" ] && ARGS+=(--vm)
+        rl package "${{ inputs.file }}" -o "bin/${{ inputs.output }}" "${ARGS[@]}"
 
     - name: Package (Windows)
       shell: pwsh
       if: runner.os == 'Windows'
-      run: rl package "${{ inputs.file }}" -o "bin\${{ inputs.output }}.exe"
+      run: |
+        $extra = @()
+        if ("${{ inputs.vm }}" -eq "true") { $extra += "--vm" }
+        rl package "${{ inputs.file }}" -o "bin\${{ inputs.output }}.exe" @extra
 
     - name: Upload Linux/macOS artifact
       if: runner.os != 'Windows'
