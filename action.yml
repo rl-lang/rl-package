@@ -14,7 +14,7 @@ inputs:
     required: false
     default: program
   version:
-    description: 'RL version: latest, nightly, or vX.Y.Z (e.g. v2.2.0). Defaults to the latest stable release.'
+    description: 'RL version: latest, nightly, or vX.Y.Z (e.g. v2.3.0). Defaults to the latest stable release.'
     required: false
     default: 'latest'
   vm:
